@@ -1,0 +1,16 @@
+{
+  "name": "test-win10",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc && node dist/main.js"
+  },
+  "dependencies": {
+    "@inter-op/core": "workspace:*",
+    "@inter-op/preload": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

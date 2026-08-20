@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Light Electron Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 24px;
+      background-color: #f8fafc;
+      color: #1e293b;
+      margin: 0;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    h1 { margin-top: 0; font-size: 20px; }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover { background-color: #1d4ed8; }
+    pre {
+      background: #0f172a;
+      color: #38bdf8;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Consolas', monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚀 Lightweight Electron — Win10/11 PoC</h1>
+    <p>Нативный движок: <b>Edge WebView2</b>. Среда backend: <b>Node.js + Rust</b>.</p>
+    <button id="btnSend">1. Проверить ipcRenderer.send ('ping')</button>
+    <button id="btnInvoke">2. Проверить ipcRenderer.invoke ('compute:multiply')</button>
+  </div>
+
+  <div class="card">
+    <h3>Лог событий:</h3>
+    <pre id="logOutput">Ожидание действий...</pre>
+  </div>
+
+  <script>
+    const logBox = document.getElementById('logOutput');
+
+    function appendLog(label, obj) {
+      logBox.innerText += '\n\n[' + new Date().toLocaleTimeString() + '] ' + label + ':\n' + JSON.stringify(obj, null, 2);
+    }
+
+    // Подписка на ответный канал pong
+    window.ipcRenderer.on('pong', (event, data) => {
+      appendLog('PONG RECEIVED (ipcRenderer.on)', data);
+    });
+
+    // 1. Тест send
+    document.getElementById('btnSend').addEventListener('click', () => {
+      appendLog('SENDING PING', { text: 'Hello from DOM' });
+      window.ipcRenderer.send('ping', { text: 'Hello from DOM' });
+    });
+
+    // 2. Тест invoke/handle
+    document.getElementById('btnInvoke').addEventListener('click', async () => {
+      try {
+        appendLog('INVOKING MULTIPLY', { a: 42, b: 10 });
+        const res = await window.ipcRenderer.invoke('compute:multiply', { a: 42, b: 10 });
+        appendLog('INVOKE RESULT', res);
+      } catch (err) {
+        appendLog('INVOKE ERROR', err.message);
+      }
+    });
+  </script>
+</body>
+</html>

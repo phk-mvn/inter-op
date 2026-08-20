@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/backend-webview2",
+    "crates/node-bridge"
+]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
