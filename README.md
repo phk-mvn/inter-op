@@ -1,8 +1,10 @@
-# RS-Engine (Lightweight Electron Alternative)
+# inter-op (Lightweight Electron Alternative)
 
 An lightweight alternative to **Electron** that leverages native operating system webview engines instead of bundling a heavy Chromium distribution.
 
 The core engine is written in **Rust**, while exposing a familiar **Node.js / TypeScript API** with full support for application lifecycle (`app`), window management (`BrowserWindow`), `preload` scripts, and bidirectional IPC (`ipcMain` <-> `ipcRenderer`).
+
+> 📝 Changelog: see [CHANGELOG.md](CHANGELOG.md) for the list of changes.
 
 ---
 
@@ -102,7 +104,7 @@ pnpm start
 `main.ts` **(Node.js Main Process):**
 
 ```TypeScript
-import { app, BrowserWindow, ipcMain } from '@light-electron/core';
+import { app, BrowserWindow, ipcMain } from '@inter-op/core';
 import * as path from 'path';
 
 app.whenReady().then(() => {

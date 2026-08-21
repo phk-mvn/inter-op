@@ -1,7 +1,39 @@
 {
   "name": "inter-op",
-  "private": true,
+  "version": "0.2.1",
   "packageManager": "pnpm@9.0.0",
+  "author": "Danila Dukin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phk-mvn/inter-op.git"
+  },
+  "bugs": {
+    "url": "https://github.com/phk-mvn/inter-op/issues"
+  },
+  "homepage": "https://github.com/phk-mvn/inter-op#readme",
+  "keywords": [
+    "electron",
+    "electron-builder",
+    "vite-electron",
+    "electron-vite",
+    "light-electron",
+    "tauri",
+    "neutralino",
+    "neutralinoJS",
+    "neutralinoTS",
+    "NW.js",
+    "NW",
+    "wails",
+    "serialport",
+    "com",
+    "port",
+    "client",
+    "server",
+    "automation",
+    "stream",
+    "typescript"
+  ],
   "scripts": {
     "build:native": "pnpm --filter light-node-bridge run build",
     "build:ts": "pnpm -r --filter \"./packages/*\" run build",

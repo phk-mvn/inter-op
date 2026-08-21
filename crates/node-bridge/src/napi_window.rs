@@ -1,12 +1,26 @@
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::ThreadSafeCallContext;
 use napi_derive::napi;
-use light_core::{WindowBackend, WindowOptions, IpcMessage};
+use light_core::{WindowBackend, WindowOptions, IpcMessage, WindowEvent};
 use light_backend_webview2::WebView2Window;
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use parking_lot::Mutex;
-use crate::napi_ipc::{JsIpcCallback, NodeIpcEmitter};
+use crate::napi_ipc::{JsIpcCallback, NodeIpcEmitter, NodeWindowEventEmitter, JsEventCallback};
+
+fn window_event_to_json(event: &WindowEvent) -> String {
+    match event {
+        WindowEvent::Created => r#"{"type":"created"}"#.to_string(),
+        WindowEvent::Closed => r#"{"type":"closed"}"#.to_string(),
+        WindowEvent::Resized { width, height } => {
+            format!(r#"{{"type":"resized","width":{},"height":{}}}"#, width, height)
+        }
+        WindowEvent::Moved { x, y } => {
+            format!(r#"{{"type":"moved","x":{},"y":{}}}"#, x, y)
+        }
+        WindowEvent::IpcReceived(_) => r#"{"type":"ipc"}"#.to_string(),
+    }
+}
 
 #[napi(object)]
 pub struct JsWindowOptions {
@@ -23,6 +37,7 @@ pub struct JsWindowOptions {
 pub struct NativeWindow {
     backend: Arc<Mutex<Option<Box<dyn WindowBackend>>>>,
     emitter: Arc<Mutex<NodeIpcEmitter>>,
+    event_emitter: Arc<Mutex<NodeWindowEventEmitter>>,
 }
 
 #[napi]
@@ -40,23 +55,35 @@ impl NativeWindow {
         };
 
         let (ipc_tx, ipc_rx) = channel::<IpcMessage>();
+        let (event_tx, event_rx) = channel::<WindowEvent>();
 
-        let window = WebView2Window::new(opts, ipc_tx)
+        let window = WebView2Window::new(opts, ipc_tx, event_tx)
             .map_err(|e| Error::from_reason(format!("Failed to create WebView2 window: {}", e)))?;
 
         let emitter = Arc::new(Mutex::new(NodeIpcEmitter::new()));
         let emitter_clone = emitter.clone();
 
-        // Фоновый поток для пересылки входящих сообщений из UI потока в Node.js
+        // Фоновый поток для пересылки входящих IPC-сообщений из UI потока в Node.js
         std::thread::spawn(move || {
             while let Ok(msg) = ipc_rx.recv() {
                 emitter_clone.lock().emit(&msg);
             }
         });
 
+        let event_emitter = Arc::new(Mutex::new(NodeWindowEventEmitter::new()));
+        let event_emitter_clone = event_emitter.clone();
+
+        // Фоновый поток для пересылки событий жизненного цикла окна в Node.js
+        std::thread::spawn(move || {
+            while let Ok(event) = event_rx.recv() {
+                event_emitter_clone.lock().emit(window_event_to_json(&event));
+            }
+        });
+
         Ok(Self {
             backend: Arc::new(Mutex::new(Some(Box::new(window)))),
             emitter,
+            event_emitter,
         })
     }
 
@@ -67,6 +94,16 @@ impl NativeWindow {
         })?;
 
         self.emitter.lock().set_callback(tsfn);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn set_event_callback(&self, callback: JsFunction) -> Result<()> {
+        let tsfn: JsEventCallback = callback.create_threadsafe_function(0, |ctx: ThreadSafeCallContext<String>| {
+            ctx.env.create_string(&ctx.value).map(|v| vec![v])
+        })?;
+
+        self.event_emitter.lock().set_callback(tsfn);
         Ok(())
     }
 

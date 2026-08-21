@@ -1,4 +1,3 @@
-use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use light_core::IpcMessage;
 
@@ -23,6 +22,29 @@ impl NodeIpcEmitter {
             if let Ok(json_str) = msg.to_json() {
                 cb.call(json_str, ThreadsafeFunctionCallMode::NonBlocking);
             }
+        }
+    }
+}
+
+pub type JsEventCallback = ThreadsafeFunction<String, ErrorStrategy::Fatal>;
+
+#[derive(Clone)]
+pub struct NodeWindowEventEmitter {
+    callback: Option<JsEventCallback>,
+}
+
+impl NodeWindowEventEmitter {
+    pub fn new() -> Self {
+        Self { callback: None }
+    }
+
+    pub fn set_callback(&mut self, cb: JsEventCallback) {
+        self.callback = Some(cb);
+    }
+
+    pub fn emit(&self, json: String) {
+        if let Some(ref cb) = self.callback {
+            cb.call(json, ThreadsafeFunctionCallMode::NonBlocking);
         }
     }
 }

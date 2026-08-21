@@ -44,9 +44,11 @@ class BrowserWindow extends events_1.EventEmitter {
         super();
         // Автоматический поиск нативного бинарника
         const candidates = [
+            path.resolve(__dirname, '../../../target/release/inter_op.node'),
             path.resolve(__dirname, '../../../target/release/light_node_bridge.node'),
             path.resolve(__dirname, '../../../crates/node-bridge/index.node'),
             path.resolve(__dirname, '../../crates/node-bridge/index.node'),
+            path.resolve(__dirname, './inter_op.node'),
             path.resolve(__dirname, './light_node_bridge.node'),
         ];
         let addon = null;
@@ -80,13 +82,37 @@ class BrowserWindow extends events_1.EventEmitter {
                 this.nativeWindow.sendIpc(channel, payload);
             });
         });
+        // Подключаем события жизненного цикла окна из Rust
+        this.nativeWindow.setEventCallback((rawJson) => {
+            try {
+                const ev = JSON.parse(rawJson);
+                switch (ev.type) {
+                    case 'created':
+                        this.emit('ready');
+                        this.emit('created');
+                        break;
+                    case 'closed':
+                        this.emit('closed');
+                        break;
+                    case 'resized':
+                        this.emit('resize', { width: ev.width, height: ev.height });
+                        break;
+                    case 'moved':
+                        this.emit('move', { x: ev.x, y: ev.y });
+                        break;
+                }
+            }
+            catch {
+                /* ignore malformed event */
+            }
+        });
     }
     loadURL(url) {
         this.nativeWindow.loadUrl(url);
     }
     loadFile(filePath) {
-        const absolutePath = path.resolve(filePath);
-        this.loadURL(`file://${absolutePath}`);
+        const absolutePath = path.resolve(filePath).replace(/\\/g, '/');
+        this.loadURL(`file:///${absolutePath}`);
     }
     loadHTML(html) {
         this.nativeWindow.loadHtml(html);

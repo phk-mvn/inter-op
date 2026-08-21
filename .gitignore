@@ -1,0 +1,16 @@
+# Зависимости Node.js
+node_modules/
+.pnpm-store/
+.modules.yaml
+
+# Сборка Rust
+target/
+
+# Бинарники и собранные скрипты в подпапках
+*.dll
+*.node
+dist/
+
+# Логи и кэш
+*.log
+.eslintcache
