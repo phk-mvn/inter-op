@@ -1,2 +1,2 @@
-import '@inter-op/preload';
+export {};
 //# sourceMappingURL=preload.d.ts.map

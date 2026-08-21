@@ -1,4 +1,5 @@
-// Подключаем рантайм IPC моста
-import '@inter-op/preload';
+// Подключаем рантайм IPC моста (инжектится движком как window.ipcRenderer).
+// Импорт типизированного значения работает после бандлинга прелоада в browser-JS.
+import { ipcRenderer } from '@inter-op/preload';
 
-console.log('[Preload] Injected and initialized successfully!');
+console.log('[Preload] ipcRenderer injected:', !!ipcRenderer);

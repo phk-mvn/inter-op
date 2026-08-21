@@ -3,14 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
-    "start": "tsc && node dist/main.js"
+    "build:preload": "esbuild src/preload.ts --bundle --format=iife --outfile=dist/preload.js",
+    "build": "tsc && pnpm run build:preload",
+    "start": "pnpm run build && node dist/main.js"
   },
   "dependencies": {
     "@inter-op/core": "workspace:*",
     "@inter-op/preload": "workspace:*"
   },
   "devDependencies": {
+    "esbuild": "^0.21.0",
     "typescript": "^5.4.0"
   }
 }
