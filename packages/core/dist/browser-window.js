@@ -38,6 +38,7 @@ const events_1 = require("events");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const ipc_main_1 = require("./ipc-main");
+const app_1 = require("./app");
 class BrowserWindow extends events_1.EventEmitter {
     nativeWindow; // NativeWindow из napi-rs аддона
     constructor(options = {}) {
@@ -73,9 +74,13 @@ class BrowserWindow extends events_1.EventEmitter {
             resizable: options.resizable ?? true,
             frameless: options.frame === false,
             devtools: options.webPreferences?.devTools ?? false,
-            preload_script: options.webPreferences?.preload ? path.resolve(options.webPreferences.preload) : undefined,
+            contextIsolation: options.webPreferences?.contextIsolation ?? true,
+            nodeIntegration: options.webPreferences?.nodeIntegration ?? false,
+            preloadScript: options.webPreferences?.preload ? path.resolve(options.webPreferences.preload) : undefined,
         };
         this.nativeWindow = new addon.NativeWindow(nativeOpts);
+        // Регистрируем окно в app для жизненного цикла (quit / window-all-closed)
+        app_1.app.registerWindow(this);
         // Подключаем IPC колбэк от Rust к ipcMain
         this.nativeWindow.setIpcCallback((rawJson) => {
             ipc_main_1.ipcMain._dispatch(rawJson, (channel, payload, callbackId) => {
@@ -93,6 +98,7 @@ class BrowserWindow extends events_1.EventEmitter {
                         break;
                     case 'closed':
                         this.emit('closed');
+                        app_1.app.unregisterWindow(this);
                         break;
                     case 'resized':
                         this.emit('resize', { width: ev.width, height: ev.height });

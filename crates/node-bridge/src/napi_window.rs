@@ -30,7 +30,12 @@ pub struct JsWindowOptions {
     pub resizable: Option<bool>,
     pub frameless: Option<bool>,
     pub devtools: Option<bool>,
+    #[napi(js_name = "preloadScript")]
     pub preload_script: Option<String>,
+    #[napi(js_name = "contextIsolation")]
+    pub context_isolation: Option<bool>,
+    #[napi(js_name = "nodeIntegration")]
+    pub node_integration: Option<bool>,
 }
 
 #[napi]
@@ -52,6 +57,8 @@ impl NativeWindow {
             frameless: options.frameless.unwrap_or(false),
             devtools: options.devtools.unwrap_or(false),
             preload_script: options.preload_script.map(std::path::PathBuf::from),
+            context_isolation: options.context_isolation.unwrap_or(true),
+            node_integration: options.node_integration.unwrap_or(false),
         };
 
         let (ipc_tx, ipc_rx) = channel::<IpcMessage>();

@@ -8,6 +8,8 @@ export interface BrowserWindowOptions {
     webPreferences?: {
         preload?: string;
         devTools?: boolean;
+        contextIsolation?: boolean;
+        nodeIntegration?: boolean;
     };
 }
 export declare class BrowserWindow extends EventEmitter {

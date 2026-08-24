@@ -31,15 +31,39 @@
     "../../packages/preload/dist/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.ipcRenderer = void 0;
-      exports.ipcRenderer = window.ipcRenderer;
-      if (!window.ipcRenderer) {
+      exports.contextBridge = exports.ipcRenderer = void 0;
+      var internalIpc = window.__inter_op_ipc ?? window.ipcRenderer;
+      exports.ipcRenderer = internalIpc;
+      if (!internalIpc) {
         console.warn("[inter-op/preload] ipcRenderer runtime is not injected by the engine.");
       }
+      exports.contextBridge = {
+        exposeInMainWorld: (key, api) => {
+          const exposeFn = window.__inter_op_expose;
+          if (typeof exposeFn === "function") {
+            exposeFn(key, api);
+            return;
+          }
+          Object.defineProperty(window, key, {
+            value: api,
+            writable: false,
+            configurable: false,
+            enumerable: true
+          });
+          Object.freeze(api);
+        }
+      };
     }
   });
 
   // src/preload.ts
   var import_preload = __toESM(require_dist());
-  console.log("[Preload] ipcRenderer injected:", !!import_preload.ipcRenderer);
+  import_preload.contextBridge.exposeInMainWorld("electronAPI", {
+    send: (channel, ...args) => import_preload.ipcRenderer.send(channel, ...args),
+    invoke: (channel, ...args) => import_preload.ipcRenderer.invoke(channel, ...args),
+    on: (channel, listener) => import_preload.ipcRenderer.on(channel, listener),
+    once: (channel, listener) => import_preload.ipcRenderer.once(channel, listener),
+    removeListener: (channel, listener) => import_preload.ipcRenderer.removeListener(channel, listener)
+  });
+  console.log("[Preload] electronAPI exposed:", !!window.electronAPI);
 })();

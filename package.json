@@ -1,6 +1,6 @@
 {
   "name": "inter-op",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "packageManager": "pnpm@9.0.0",
   "author": "Danila Dukin",
   "license": "MIT",
@@ -38,6 +38,7 @@
     "build:native": "pnpm --filter light-node-bridge run build",
     "build:ts": "pnpm -r --filter \"./packages/*\" run build",
     "build": "pnpm run build:native && pnpm run build:ts",
+    "sign": "powershell -ExecutionPolicy Bypass -File scripts/sign.ps1",
     "clean": "pnpm -r run clean && cargo clean"
   },
   "devDependencies": {

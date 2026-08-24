@@ -61,22 +61,22 @@
       logBox.innerText += '\n\n[' + new Date().toLocaleTimeString() + '] ' + label + ':\n' + JSON.stringify(obj, null, 2);
     }
 
-    // Подписка на ответный канал pong
-    window.ipcRenderer.on('pong', (event, data) => {
-      appendLog('PONG RECEIVED (ipcRenderer.on)', data);
+    // Подписка на ответный канал pong — доступ идёт только через API из preload
+    window.electronAPI.on('pong', (event, data) => {
+      appendLog('PONG RECEIVED (electronAPI.on)', data);
     });
 
     // 1. Тест send
     document.getElementById('btnSend').addEventListener('click', () => {
       appendLog('SENDING PING', { text: 'Hello from DOM' });
-      window.ipcRenderer.send('ping', { text: 'Hello from DOM' });
+      window.electronAPI.send('ping', { text: 'Hello from DOM' });
     });
 
     // 2. Тест invoke/handle
     document.getElementById('btnInvoke').addEventListener('click', async () => {
       try {
         appendLog('INVOKING MULTIPLY', { a: 42, b: 10 });
-        const res = await window.ipcRenderer.invoke('compute:multiply', { a: 42, b: 10 });
+        const res = await window.electronAPI.invoke('compute:multiply', { a: 42, b: 10 });
         appendLog('INVOKE RESULT', res);
       } catch (err) {
         appendLog('INVOKE ERROR', err.message);

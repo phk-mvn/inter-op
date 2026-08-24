@@ -22,6 +22,11 @@ pub struct WindowOptions {
     pub devtools: bool,
     /// Путь к пользовательскому preload скрипту (JS)
     pub preload_script: Option<PathBuf>,
+    /// Изоляция контекста (как Electron contextIsolation). true — мост недоступен для
+    /// перезаписи из кода страницы (window.ipcRenderer замораживается).
+    pub context_isolation: bool,
+    /// Node.js внутри WebView2 недоступен — всегда false. Опция оставлена для API-параллели.
+    pub node_integration: bool,
 }
 
 impl Default for WindowOptions {
@@ -34,6 +39,8 @@ impl Default for WindowOptions {
             frameless: false,
             devtools: false,
             preload_script: None,
+            context_isolation: true,
+            node_integration: false,
         }
     }
 }

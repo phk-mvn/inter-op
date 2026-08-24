@@ -133,6 +133,20 @@ app.whenReady().then(() => {
 });
 ```
 
+`preload.ts` **(Isolated Preload Script):**
+
+```TypeScript
+import { contextBridge, ipcRenderer } from '@inter-op/preload';
+
+// Explicitly expose only the APIs the renderer is allowed to use.
+contextBridge.exposeInMainWorld('electronAPI', {
+  send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
+  on: (channel: string, listener: (event: any, ...args: any[]) => void) =>
+    ipcRenderer.on(channel, listener),
+});
+```
+
 `index.html` **(Renderer UI Process):**
 
 ```Html
@@ -149,18 +163,18 @@ app.whenReady().then(() => {
 
   <script>
     // Listen for incoming responses from Node.js
-    window.ipcRenderer.on('pong', (event, data) => {
+    window.electronAPI.on('pong', (event, data) => {
       console.log('Response from main.ts:', data);
     });
 
     // 1. Send an event without waiting for a Promise
     document.getElementById('btnPing').onclick = () => {
-      window.ipcRenderer.send('ping', { timestamp: Date.now() });
+      window.electronAPI.send('ping', { timestamp: Date.now() });
     };
 
     // 2. Invoke a method and await the result via Promise
     document.getElementById('btnCalc').onclick = async () => {
-      const res = await window.ipcRenderer.invoke('math:multiply', { a: 5, b: 10 });
+      const res = await window.electronAPI.invoke('math:multiply', { a: 5, b: 10 });
       console.log('Multiplication result:', res.result); // 50
     };
   </script>

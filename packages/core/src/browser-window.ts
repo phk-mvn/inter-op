@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import * as path from 'path';
 import * as fs from 'fs';
 import { ipcMain } from './ipc-main';
+import { app } from './app';
 
 export interface BrowserWindowOptions {
   width?: number;
@@ -12,6 +13,8 @@ export interface BrowserWindowOptions {
   webPreferences?: {
     preload?: string;
     devTools?: boolean;
+    contextIsolation?: boolean;
+    nodeIntegration?: boolean;
   };
 }
 
@@ -54,10 +57,15 @@ export class BrowserWindow extends EventEmitter {
       resizable: options.resizable ?? true,
       frameless: options.frame === false,
       devtools: options.webPreferences?.devTools ?? false,
-      preload_script: options.webPreferences?.preload ? path.resolve(options.webPreferences.preload) : undefined,
+      contextIsolation: options.webPreferences?.contextIsolation ?? true,
+      nodeIntegration: options.webPreferences?.nodeIntegration ?? false,
+      preloadScript: options.webPreferences?.preload ? path.resolve(options.webPreferences.preload) : undefined,
     };
 
     this.nativeWindow = new addon.NativeWindow(nativeOpts);
+
+    // Регистрируем окно в app для жизненного цикла (quit / window-all-closed)
+    app.registerWindow(this);
 
     // Подключаем IPC колбэк от Rust к ipcMain
     this.nativeWindow.setIpcCallback((rawJson: string) => {
@@ -77,6 +85,7 @@ export class BrowserWindow extends EventEmitter {
             break;
           case 'closed':
             this.emit('closed');
+            app.unregisterWindow(this);
             break;
           case 'resized':
             this.emit('resize', { width: ev.width, height: ev.height });

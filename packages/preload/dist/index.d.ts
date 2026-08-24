@@ -6,4 +6,13 @@ export interface IpcRenderer {
     removeListener(channel: string, listener: (event: any, ...args: any[]) => void): void;
 }
 export declare const ipcRenderer: IpcRenderer;
+/**
+ * Electron-style contextBridge. В WebView2 нет настоящих isolated worlds,
+ * поэтому это безопасная обёртка над Object.defineProperty + Object.freeze,
+ * которая при contextIsolation: true защищает экспортированный API от перезаписи
+ * со стороны страницы.
+ */
+export declare const contextBridge: {
+    exposeInMainWorld: (key: string, api: any) => void;
+};
 //# sourceMappingURL=index.d.ts.map

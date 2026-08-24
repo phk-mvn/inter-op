@@ -19,8 +19,8 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 const WM_USER_DISPATCH: u32 = WM_USER + 101;
 
-/// Инжектируемый browser-JS рантайм: создаёт window.ipcRenderer и шину диспетчеризации.
-/// Не содержит require/import — исполняется напрямую в контексте WebView2.
+/// Инжектируемый browser-JS рантайм: создаёт внутренний IPC-мост и helper
+/// `window.__inter_op_expose` для contextBridge. Не содержит require/import.
 const IPC_RUNTIME_JS: &str = r#"
 (function () {
   function __dispatch(msg) {
@@ -114,7 +114,35 @@ const IPC_RUNTIME_JS: &str = r#"
     }
   };
 
-  window.ipcRenderer = ipcRenderer;
+  function expose(key, api) {
+    if (__CTX_ISO__ === true) {
+      Object.defineProperty(window, key, {
+        value: api, writable: false, configurable: false, enumerable: true,
+      });
+      Object.freeze(api);
+    } else {
+      window[key] = api;
+    }
+  }
+
+  if (__CTX_ISO__ === true) {
+    // contextIsolation: страница не может перезаписать мост или его методы
+    Object.defineProperty(window, '__native_ipc_dispatch', {
+      value: __dispatch, writable: false, configurable: false,
+    });
+    Object.defineProperty(window, '__inter_op_ipc', {
+      value: ipcRenderer, writable: false, configurable: false, enumerable: false,
+    });
+    Object.defineProperty(window, '__inter_op_expose', {
+      value: expose, writable: false, configurable: false, enumerable: false,
+    });
+    Object.freeze(ipcRenderer);
+  } else {
+    window.__native_ipc_dispatch = __dispatch;
+    window.__inter_op_ipc = ipcRenderer;
+    window.__inter_op_expose = expose;
+  }
+
 })();
 "#;
 
@@ -211,17 +239,31 @@ impl WebView2Window {
                     return;
                 }
 
-                let preload_content = options
-                    .preload_script
-                    .and_then(|p| std::fs::read_to_string(p).ok());
-                let (controller, webview) =
-                    match Self::setup_webview(hwnd, preload_content, ipc_sender, options.devtools) {
-                        Ok(res) => res,
+                let preload_content = match options.preload_script {
+                    Some(ref p) => match std::fs::read_to_string(p) {
+                        Ok(content) => Some(content),
                         Err(e) => {
-                            let _ = ready_tx.send(Err(e.to_string()));
-                            return;
+                            eprintln!("[WebView2] Failed to read preload script '{}': {}", p.display(), e);
+                            None
                         }
-                    };
+                    },
+                    None => None,
+                };
+
+                let (controller, webview) = match Self::setup_webview(
+                    hwnd,
+                    preload_content,
+                    ipc_sender,
+                    options.devtools,
+                    options.context_isolation,
+                    options.node_integration,
+                ) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        let _ = ready_tx.send(Err(e.to_string()));
+                        return;
+                    }
+                };
 
                 // Регистрируем канал событий и сообщаем о создании окна
                 EVENT_TX.with(|c| *c.borrow_mut() = Some(event_sender));
@@ -266,6 +308,8 @@ impl WebView2Window {
         preload_content: Option<String>,
         ipc_sender: Sender<IpcMessage>,
         devtools: bool,
+        context_isolation: bool,
+        node_integration: bool,
     ) -> StdResult<(ICoreWebView2Controller, ICoreWebView2), Box<dyn std::error::Error>> {
         let (tx, rx) = channel();
 
@@ -346,18 +390,28 @@ impl WebView2Window {
             settings.SetIsWebMessageEnabled(true)?;
             settings.SetAreDevToolsEnabled(devtools)?;
 
-            // Инъекция: сначала рантайм ipcRenderer, затем пользовательский preload
-            let mut combined_preload = IPC_RUNTIME_JS.to_string();
-            if let Some(user_preload) = preload_content {
-                combined_preload.push('\n');
-                combined_preload.push_str(&user_preload);
+            if node_integration {
+                eprintln!(
+                    "inter-op: nodeIntegration is not supported in WebView2 and is ignored (always false)."
+                );
             }
 
-            let preload_wide: Vec<u16> = combined_preload
+            // Инъекция рантайма IPC (всегда) и пользовательского preload (отдельным скриптом).
+            // Отдельные вызовы гарантируют порядок выполнения и изолируют runtime от user-кода.
+            let runtime_script = format!("var __CTX_ISO__ = {};\n{}", context_isolation, IPC_RUNTIME_JS);
+            let runtime_wide: Vec<u16> = runtime_script
                 .encode_utf16()
                 .chain(std::iter::once(0))
                 .collect();
-            webview.AddScriptToExecuteOnDocumentCreated(PCWSTR(preload_wide.as_ptr()), None)?;
+            webview.AddScriptToExecuteOnDocumentCreated(PCWSTR(runtime_wide.as_ptr()), None)?;
+
+            if let Some(user_preload) = preload_content {
+                let user_wide: Vec<u16> = user_preload
+                    .encode_utf16()
+                    .chain(std::iter::once(0))
+                    .collect();
+                webview.AddScriptToExecuteOnDocumentCreated(PCWSTR(user_wide.as_ptr()), None)?;
+            }
 
             let msg_handler = WebMessageReceivedEventHandler::create(Box::new(
                 move |_sender, args| {

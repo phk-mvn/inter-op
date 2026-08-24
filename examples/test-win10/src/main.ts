@@ -8,6 +8,7 @@ app.whenReady().then(() => {
     title: 'Lightweight Electron - Windows 10/11 Test',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      devTools: true,
     },
   });
 
